@@ -1,0 +1,83 @@
+services:
+  # ─── Nginx (Reverse Proxy) ────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: moodle_nginx
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-80}:80"
+    volumes:
+      - .:/var/www/html:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      php:
+        condition: service_started
+    networks:
+      - moodle_net
+
+  # ─── PHP 8.4-FPM ─────────────────────────────────────────────────────────
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      args:
+        UID: ${UID:-33}
+        GID: ${GID:-33}
+    container_name: moodle_php
+    restart: unless-stopped
+    volumes:
+      - .:/var/www/html
+      - moodledata:/var/www/moodledata
+      - ./docker/php/php.ini:/usr/local/etc/php/conf.d/moodle.ini:ro
+      - ./docker/php/www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
+    environment:
+      PHP_MEMORY_LIMIT: "${PHP_MEMORY_LIMIT:-512M}"
+      PHP_MAX_EXECUTION_TIME: "${PHP_MAX_EXECUTION_TIME:-300}"
+      PHP_UPLOAD_MAX_FILESIZE: "${PHP_UPLOAD_MAX_FILESIZE:-256M}"
+      PHP_POST_MAX_SIZE: "${PHP_POST_MAX_SIZE:-256M}"
+      MOODLE_WWWROOT: "${MOODLE_WWWROOT:-http://localhost}"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - moodle_net
+
+  # ─── MySQL 8.4 ────────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.4
+    container_name: moodle_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-rootpassword}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE:-moodle}"
+      MYSQL_USER: "${MYSQL_USER:-moodle}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD:-moodlepass}"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - mysql_logs:/var/log/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/moodle.cnf:ro
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - moodle_net
+
+volumes:
+  mysql_data:
+    driver: local
+  mysql_logs:
+    driver: local
+  moodledata:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  moodle_net:
+    driver: bridge
