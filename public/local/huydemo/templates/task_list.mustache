@@ -1,0 +1,22 @@
+<div class="task-container mt-4">
+    <h3>List tasks:</h3>
+    {{#hastasks}}
+        <ul class="list-group">
+            {{#tasks}}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{taskname}}</strong>
+                        <div class="text-muted small">Created at: {{date}}</div>
+                    </div>
+                    <a href="{{deleteurl}}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete?');">
+                        Delete
+                    </a>
+                </li>
+            {{/tasks}}
+        </ul>
+    {{/hastasks}}
+    
+    {{^hastasks}}
+        <div class="alert alert-info">No tasks.</div>
+    {{/hastasks}}
+</div>
