@@ -4,6 +4,7 @@ require_once(__DIR__ . '/../../config.php');
 require_once($CFG->dirroot . '/local/huydemo/classes/form/task_form.php');
 
 use core\output\html_writer;
+use core\output\inplace_editable;
 use core\output\notification;
 use core\url;
 use local_huydemo\form\task_form;
@@ -60,8 +61,19 @@ if ($templatedata->hastasks) {
             'sesskey' => sesskey(),
         ]);
 
+        $editable = new inplace_editable(
+            component: 'local_huydemo',
+            itemtype: 'taskname',
+            itemid: $task->id,
+            editable: true,
+            displayvalue: $task->taskname,
+            value: $task->taskname,
+        );
+
+        $taskname_html = $OUTPUT->render($editable);
+
         $templatedata->tasks[] = [
-            'taskname' => $task->taskname,
+            'taskname_html' => $taskname_html,
             'date' => userdate($task->timecreated),
             'deleteurl' => $deleteUrl->out(false),
         ];
